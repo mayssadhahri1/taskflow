@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Production : 3 pods minimum, image figée sur une version précise.
+# Le Secret "taskflow-secrets" n'est PAS dans le dépôt : il est créé à part
+# (kubectl create secret, Sealed Secrets ou External Secrets).
+namespace: taskflow
+resources:
+  - ../../base
+
+patches:
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: taskflow-api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  - target:
+      kind: Deployment
+      name: taskflow-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Ingress
+      name: taskflow-api
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: taskflow.example.com
+
+# Mis à jour automatiquement par le pipeline Jenkins (étape GitOps)
+images:
+  - name: mayssadhahri1/taskflow
+    newTag: "1.0.0"
