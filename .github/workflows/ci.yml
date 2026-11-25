@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      # Les tests d'intégration tournent aussi contre un vrai PostgreSQL
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: taskflow
+          POSTGRES_USER: taskflow
+          POSTGRES_PASSWORD: taskflow-ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U taskflow"
+          --health-interval 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Tests
+        run: pytest
+      - name: Démarrage sur PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://taskflow:taskflow-ci@localhost:5432/taskflow
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 15); do
+            curl -fs http://localhost:8000/health/ready && break
+            sleep 1
+          done
+          curl -fs -X POST http://localhost:8000/api/v1/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"email":"ci@example.com","password":"motdepasse123"}'
+
+  kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Installation de kubeconform
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+      - name: Validation des manifestes (dev et prod)
+        run: |
+          for env in dev prod; do
+            kubectl kustomize k8s/overlays/$env | kubeconform -strict -summary -ignore-missing-schemas
+          done
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build de l'image
+        run: docker build -t taskflow:ci .
+      - name: Smoke test du conteneur
+        run: |
+          docker run -d --name taskflow -p 8000:8000 -e DATABASE_URL=sqlite:////tmp/smoke.db taskflow:ci
+          for i in $(seq 1 15); do
+            curl -fs http://localhost:8000/health/ready && exit 0
+            sleep 2
+          done
+          docker logs taskflow
+          exit 1
+      - name: Scan de sécurité Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: taskflow:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
