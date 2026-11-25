@@ -1,0 +1,22 @@
+[project]
+name = "taskflow"
+version = "1.0.0"
+description = "API de gestion de tâches : FastAPI, PostgreSQL, Kubernetes, GitOps"
+requires-python = ">=3.12"
+authors = [{ name = "Mayssa Dhahri" }]
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["B008"]  # Depends() dans les paramètres est le style recommandé par FastAPI
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S105", "S106", "S107"]  # assert et mots de passe de test autorisés dans les tests
