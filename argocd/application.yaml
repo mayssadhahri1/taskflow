@@ -1,0 +1,22 @@
+# Argo CD surveille le dossier k8s/overlays/prod du dépôt
+# et synchronise automatiquement le cluster à chaque commit (GitOps).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskflow
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/mayssadhahri1/taskflow.git
+    targetRevision: main
+    path: k8s/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskflow
+  syncPolicy:
+    automated:
+      prune: true     # supprime du cluster ce qui a été retiré du dépôt
+      selfHeal: true  # annule les modifications faites à la main sur le cluster
+    syncOptions:
+      - CreateNamespace=true
