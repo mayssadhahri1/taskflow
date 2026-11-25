@@ -1,0 +1,12 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+*.db
+tests
+k8s
+argocd
+Jenkinsfile
+docker-compose.yml
+*.md
