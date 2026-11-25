@@ -1,0 +1,38 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Environnement de développement : 1 seul pod, secrets de démonstration générés ici
+namespace: taskflow-dev
+resources:
+  - ../../base
+
+secretGenerator:
+  - name: taskflow-secrets
+    literals:
+      - POSTGRES_USER=taskflow
+      - POSTGRES_PASSWORD=dev-password
+      - DATABASE_URL=postgresql+psycopg://taskflow:dev-password@taskflow-db:5432/taskflow
+      - JWT_SECRET=dev-secret-a-remplacer-0123456789abcdef
+
+patches:
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: taskflow-api
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: taskflow-api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+images:
+  - name: mayssadhahri1/taskflow
+    newTag: latest
