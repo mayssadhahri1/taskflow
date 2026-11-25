@@ -1,0 +1,29 @@
+# Environnement local complet : API + PostgreSQL
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: taskflow
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: taskflow-local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    image: taskflow:latest
+    environment:
+      DATABASE_URL: postgresql+psycopg://taskflow:taskflow-local@db:5432/taskflow
+      JWT_SECRET: secret-local-uniquement-pour-le-developpement
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy  # l'API attend que PostgreSQL soit prêt
+
+volumes:
+  pgdata:
