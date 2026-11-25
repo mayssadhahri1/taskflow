@@ -8,6 +8,7 @@ license = { text = "MIT" }
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # permet d'importer le paquet app depuis les tests
 addopts = "-q"
 
 [tool.ruff]
